@@ -20,10 +20,15 @@
 #include <stdarg.h>
 
 #define YZCONF_LOG_LEVEL(_logger, _level) \
-    if( _logger.getLevel() <= _level )  \
-        yzconf::LogEvent::ptr(new yzconf::LogEvent(logger, yzconf::LogLevel::DEBUG,\
-                         __FILE__, __LINE__, 0, yzconf::GetThreadId(), yzconf::GetFiberId(), time(0)))->getSS()
+    if( _logger->getLevel() <= _level )  \
+        yzconf::LogEventWrap(yzconf::LogEvent::ptr(new yzconf::LogEvent(_logger, yzconf::LogLevel::DEBUG,\
+                         __FILE__, __LINE__, 0, yzconf::GetThreadId(), yzconf::GetFiberId(), time(0)))).getSS()
 #define YZCONF_LOG_DEBUG(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::DEBUG)
+#define YZCONF_LOG_INFO(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::INFO)
+#define YZCONF_LOG_WARN(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::WARN)
+#define YZCONF_LOG_ERROR(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::ERROR)
+#define YZCONF_LOG_FATAL(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::FATAL)
+
 
 namespace yzconf {
 
@@ -54,7 +59,7 @@ public:
             pthread_t thread_id,
             uint32_t fiber_id,
             uint64_t time,
-            const std::string& thread_name)
+            const std::string& thread_name = "test")
         :m_file(file)
         ,m_line(line)
         ,m_elapse(elapse)
@@ -78,6 +83,7 @@ public:
     std::string getContent() const { return m_ss.str(); }
     std::stringstream& getSS() { return m_ss; };
     LogLevel::Level getLevel() const { return m_level; }
+    std::shared_ptr<Logger>& getLogger() { return m_logger; }
 
 private:
     const char* m_file = nullptr;   //文件名
@@ -91,6 +97,17 @@ private:
     std::stringstream m_ss;
     std::shared_ptr<Logger> m_logger;
     
+};
+
+class LogEventWrap {
+public:
+    typedef std::shared_ptr<LogEventWrap> ptr;
+    LogEventWrap(LogEvent::ptr e);
+    ~LogEventWrap();
+
+    std::stringstream& getSS();
+private:
+    LogEvent::ptr m_event;
 };
 
 //日志格式

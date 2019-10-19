@@ -26,7 +26,17 @@ const char* LogLevel::toString( LogLevel::Level level) {
     }
     return "UNKONW";    
 }
+LogEventWrap::LogEventWrap(LogEvent::ptr e)
+    :m_event(e) {
+}
+LogEventWrap::~LogEventWrap() {
+    m_event->getLogger()->log(m_event->getLevel(), m_event);
 
+}
+
+std::stringstream& LogEventWrap::getSS() {
+    return m_event->getSS();
+}
 class MessageFormatIterm : public LogFormater::FormatIterm {
 public:
     MessageFormatIterm(const std::string& str="") {}
@@ -127,7 +137,7 @@ private:
 };
 
 void Logger::log(LogLevel::Level level, LogEvent::ptr event) {
-    if( level > m_level ) {
+    if( level >= m_level ) {
         auto self = shared_from_this();
         for( auto& i: m_appenders ) {
             i->log(self, level, event);
