@@ -11,7 +11,9 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <stdio.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <list>
 #include <vector>
 #include <fstream>
@@ -21,15 +23,19 @@
 
 #define YZCONF_LOG_LEVEL(_logger, _level) \
     if( _logger->getLevel() <= _level )  \
-        yzconf::LogEventWrap(yzconf::LogEvent::ptr(new yzconf::LogEvent(_logger, yzconf::LogLevel::DEBUG,\
+        yzconf::LogEventWrap(yzconf::LogEvent::ptr(new yzconf::LogEvent(_logger, _level,\
                          __FILE__, __LINE__, 0, yzconf::GetThreadId(), yzconf::GetFiberId(), time(0)))).getSS()
 #define YZCONF_LOG_DEBUG(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::DEBUG)
-#define YZCONF_LOG_INFO(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::INFO)
-#define YZCONF_LOG_WARN(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::WARN)
+#define YZCONF_LOG_INFO(_logger )   YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::INFO)
+#define YZCONF_LOG_WARN(_logger )   YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::WARN)
 #define YZCONF_LOG_ERROR(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::ERROR)
 #define YZCONF_LOG_FATAL(_logger )  YZCONF_LOG_LEVEL(_logger, yzconf::LogLevel::FATAL)
 
-
+#define YZCONF_LOG_FMT_LEVEL(_logger, _level, _fmt, ...) \
+    if( _logger->getLevel() <= _level )  \
+        yzconf::LogEventWrap(yzconf::LogEvent::ptr(new yzconf::LogEvent(_logger, yzconf::LogLevel::DEBUG,\
+                         __FILE__, __LINE__, 0, yzconf::GetThreadId(), yzconf::GetFiberId(), time(0)))).getEvent()->format(_fmt, __VA_ARGS__)
+#define YZCONF_LOG_FMT_DEBUG(_logger, _fmt, ...) YZCONF_LOG_FMT_LEVEL(_logger, yzconf::LogLevel::DEBUG, _fmt, __VA_ARGS__)
 namespace yzconf {
 
 class Logger;
@@ -84,7 +90,10 @@ public:
     std::stringstream& getSS() { return m_ss; };
     LogLevel::Level getLevel() const { return m_level; }
     std::shared_ptr<Logger>& getLogger() { return m_logger; }
+    std::string getThreadName() { return m_threadname; }
 
+    void format(const char* fmt, ...);
+    void format(const char* fmt, va_list val);
 private:
     const char* m_file = nullptr;   //文件名
     int m_line = 0;            //行号:
@@ -106,6 +115,7 @@ public:
     ~LogEventWrap();
 
     std::stringstream& getSS();
+    LogEvent::ptr& getEvent() { return m_event; }
 private:
     LogEvent::ptr m_event;
 };
@@ -138,6 +148,9 @@ public:
 
     void setFormater( LogFormater::ptr val ) { m_formater = val;} 
     LogFormater::ptr getFormater() { return m_formater; }
+
+    void setLevel( LogLevel::Level level) { m_level = level;}
+    LogLevel::Level getLevel() const { return m_level; }
 protected:
     LogLevel::Level m_level;
     LogFormater::ptr m_formater;
@@ -149,7 +162,9 @@ class Logger : public std::enable_shared_from_this<Logger> {
 public:
     typedef std::shared_ptr<Logger> ptr;
     Logger(const std::string& name="root")
-        :m_name( name ) {
+        :m_name( name ) 
+        ,m_level(LogLevel::DEBUG) {
+        
     }
 
     void log(LogLevel::Level level, LogEvent::ptr event);
@@ -166,7 +181,7 @@ public:
     const std::string getName() const { return m_name; }
 private:
     std::string m_name;
-    LogLevel::Level m_level = LogLevel::DEBUG;
+    LogLevel::Level m_level;
     std::list<LogAppender::ptr> m_appenders;
 };
 

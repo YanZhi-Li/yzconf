@@ -26,6 +26,22 @@ const char* LogLevel::toString( LogLevel::Level level) {
     }
     return "UNKONW";    
 }
+
+void LogEvent::format(const char* fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+    format(fmt, va);
+    va_end(va);
+}
+void LogEvent::format(const char* fmt, va_list val) {
+    char *buff = nullptr;
+    int len = vasprintf(&buff, fmt, val);
+    if( len != -1 ) {
+        m_ss << std::string(buff, len);
+        free(buff);
+    }
+}
+
 LogEventWrap::LogEventWrap(LogEvent::ptr e)
     :m_event(e) {
 }
@@ -102,6 +118,20 @@ public:
     LineFormatIterm(const std::string& str="") {}
     void format(std::ostream& os, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) override {
         os << event->getLine();
+    }
+};
+class TabFormatIterm : public LogFormater::FormatIterm {
+public:
+    TabFormatIterm(const std::string& str="") {}
+    void format(std::ostream& os, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) override {
+        os << "\t";
+    }
+};
+class ThreadNameFormatIterm: public LogFormater::FormatIterm {
+public:
+    ThreadNameFormatIterm(const std::string& str="") {}
+    void format(std::ostream& os, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) override {
+        os << event->getThreadName();
     }
 };
 
@@ -184,8 +214,9 @@ FileLogAppender::FileLogAppender( const std::string& filename)
     reopen();
 }
 void FileLogAppender::log(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event) {
+    std::cout << "level=" << level << ",m_level=" << m_level << std::endl;
     if( level >= m_level) {
-        reopen();
+        //reopen();
         m_filestream << m_formater->format(logger, level, event);
     }
 }
@@ -284,6 +315,9 @@ void LogFormater::init() {
         XX(d, DateTimeFormatIterm),
         XX(f, FileNameFormatIterm),
         XX(l, LineFormatIterm),
+        XX(T, TabFormatIterm),
+        XX(F, FiberIdFormatIterm),          //F:协程id
+        XX(N, ThreadNameFormatIterm),       //N:线程名称
     #undef XX
     };
     //%p -- level
@@ -306,7 +340,7 @@ void LogFormater::init() {
                 m_iterms.push_back(FormatIterm::ptr(it->second(std::get<1>(i))));
             }
         }
-        std::cout << "(" << std::get<0>(i) << ") - (" << std::get<1>(i) << ") - (" << std::get<2>(i) << ")" << std::endl;  
+        //std::cout << "(" << std::get<0>(i) << ") - (" << std::get<1>(i) << ") - (" << std::get<2>(i) << ")" << std::endl;  
     }
 }
 
